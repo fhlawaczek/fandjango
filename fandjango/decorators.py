@@ -11,7 +11,7 @@ from fandjango.settings import FACEBOOK_APPLICATION_NAMESPACE
 from fandjango.settings import FACEBOOK_APPLICATION_INITIAL_PERMISSIONS
 from fandjango.utils import get_post_authorization_redirect_url
 
-def facebook_authorization_required(redirect_uri=None, permissions=None):
+def facebook_authorization_required(redirect_uri=None, permissions=None, except_scraper=False):
     """
     Require the user to authorize the application.
 
@@ -19,11 +19,19 @@ def facebook_authorization_required(redirect_uri=None, permissions=None):
                          Defaults to the current URI in the Facebook canvas (e.g.
                          ``http://apps.facebook.com/myapp/current/path``).
     :param permissions: A list of strings describing Facebook permissions.
+    :param except_scraper: If true, the Facebook scraper user agent will not be
+                           redirected for authorization. Use with caution.
     """
 
     def decorator(function):
         @wraps(function)
         def wrapper(request, *args, **kwargs):
+
+            # Let Facebook's scraper pass
+            # Using HTTP_USER_AGENT string which is kind of weak
+            # Only allowing GET to pass through
+            if request.method == 'GET' and request.META.get('HTTP_USER_AGENT', '').startswith('facebookexternalhit'):
+                return function(request, *args, **kwargs)
 
             # The user has already authorized the application, but the given view requires
             # permissions besides the defaults listed in ``FACEBOOK_APPLICATION_DEFAULT_PERMISSIONS``.
